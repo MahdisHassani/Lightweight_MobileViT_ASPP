@@ -99,3 +99,8 @@ Metrics reported:
 - Recall
 - F1-Score
 - mIoU
+
+---
+
+### This code is directly related to the manuscript currently submitted to The Visual Computer.
+### If you use this code, please cite the corresponding paper.
