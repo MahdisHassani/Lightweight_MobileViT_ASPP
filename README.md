@@ -1,7 +1,6 @@
 # Lightweight_MobileViT_ASPP
 Official implementation of the paper: 
-"Lightweight Vision Transformer with Atrous Spatial Pyramid Pooling for Accurate Image Inpainting Detection and Localization" 
-Submitted to The Visual Computer.
+"Lightweight Vision Transformer with Atrous Spatial Pyramid Pooling for Accurate Image Inpainting Detection and Localization".
 
 ## Python Version
 
@@ -101,6 +100,3 @@ Metrics reported:
 - mIoU
 
 ---
-
-### This code is directly related to the manuscript currently submitted to The Visual Computer.
-### If you use this code, please cite the corresponding paper.
