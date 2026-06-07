@@ -4,7 +4,6 @@ import os
 from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
-from torch.cuda import amp
 from model.mobilevit_aspp import MobileViT_ASPP
 from datasets.dataset_original import SegmentationDataset, get_train_transform, get_val_transform
 from datasets.dataset_compressed import SegDatasetCompressed
@@ -19,8 +18,6 @@ def parse_args():
     parser.add_argument('--train_mask_dir', type=str, required=True)
     parser.add_argument('--val_image_dir', type=str, required=True)
     parser.add_argument('--val_mask_dir', type=str, required=True)
-    parser.add_argument('--test_image_dir', type=str, required=True)
-    parser.add_argument('--test_mask_dir', type=str, required=True)
 
     parser.add_argument('--output_dir', type=str, default='./checkpoints')
     parser.add_argument('--epochs', type=int, default=20)
@@ -46,7 +43,7 @@ def train_one_epoch(model, loader, criterion, optimizer, scaler, device, epoch, 
 
         optimizer.zero_grad(set_to_none=True)
 
-        with amp.autocast(enabled=(device.type == "cuda")):
+        with torch.amp.autocast(device_type=device.type, enabled=(device.type == "cuda")):
             logits = model(images)
             loss = criterion(logits, masks)
 
@@ -64,7 +61,7 @@ def train_one_epoch(model, loader, criterion, optimizer, scaler, device, epoch, 
     return running_loss / len(loader.dataset)
 
 
-# Validation / Test Loop
+# Validation Loop
 
 @torch.no_grad()
 def evaluate(model, loader, criterion, device, threshold, mode="Val"):
@@ -79,7 +76,7 @@ def evaluate(model, loader, criterion, device, threshold, mode="Val"):
         images = images.to(device, non_blocking=True)
         masks = masks.to(device, non_blocking=True)
 
-        with amp.autocast(enabled=(device.type == "cuda")):
+        with torch.amp.autocast(device_type=device.type, enabled=(device.type == "cuda")):
             logits = model(images)
             loss = criterion(logits, masks)
 
@@ -123,11 +120,7 @@ def main():
             args.val_mask_dir,
             transform=get_val_transform(args.image_size)
         )
-        test_ds = SegmentationDataset(
-            args.test_image_dir,
-            args.test_mask_dir,
-            transform=get_val_transform(args.image_size)
-        )
+
     else:
         train_ds = SegDatasetCompressed(
             args.train_image_dir,
@@ -141,19 +134,11 @@ def main():
             transform=get_val_transform(args.image_size),
             mode="val"
         )
-        test_ds = SegDatasetCompressed(
-            args.test_image_dir,
-            args.test_mask_dir,
-            transform=get_val_transform(args.image_size),
-            mode="test"
-        )
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size,
                               shuffle=True, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size,
                             shuffle=False, num_workers=2, pin_memory=True)
-    test_loader = DataLoader(test_ds, batch_size=args.batch_size,
-                             shuffle=False, num_workers=2, pin_memory=True)
 
 
     # Model, Loss, Optimizer
@@ -162,7 +147,7 @@ def main():
     criterion = BCEDiceLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3, factor=0.5)
-    scaler = amp.GradScaler()
+    scaler = torch.amp.GradScaler("cuda")
 
     best_val = float('inf')
 
@@ -200,24 +185,6 @@ def main():
         }
 
         save_checkpoint(state, args.output_dir, epoch, is_best)
-
-
-    # Test Evaluation
-
-    print("\n=== Running Test Evaluation on Best Model ===")
-
-    checkpoint_path = os.path.join(args.output_dir, "best.pth")
-    if os.path.exists(checkpoint_path):
-        state = torch.load(checkpoint_path, map_location=device)
-        model.load_state_dict(state['model'])
-        test_loss, test_metrics = evaluate(model, test_loader, criterion, device, args.threshold, mode="Test")
-        print(f"Test Loss:  {test_loss:.4f}")
-        print(f"Precision:  {test_metrics['precision']:.4f}")
-        print(f"Recall:     {test_metrics['recall']:.4f}")
-        print(f"F1-Score:   {test_metrics['f1']:.4f}")
-        print(f"mIoU:       {test_metrics['iou']:.4f}")
-    else:
-        print("No best model checkpoint found for test evaluation.")
 
 
 if __name__ == "__main__":
