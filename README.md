@@ -51,9 +51,7 @@ python train.py \
 --train_image_dir dataset/train/images \
 --train_mask_dir dataset/train/masks \
 --val_image_dir dataset/val/images \
---val_mask_dir dataset/val/masks \
---test_image_dir dataset/test/images \
---test_mask_dir dataset/test/masks
+--val_mask_dir dataset/val/masks 
 ```
 
 Train on JPEG-compressed images:
@@ -64,9 +62,33 @@ python train.py \
 --train_image_dir dataset/train/images \
 --train_mask_dir dataset/train/masks \
 --val_image_dir dataset/val/images \
---val_mask_dir dataset/val/masks \
---test_image_dir dataset/test/images \
---test_mask_dir dataset/test/masks
+--val_mask_dir dataset/val/masks 
+```
+
+---
+
+## Evaluation
+
+Evaluate a trained model using a saved checkpoint.
+
+Evaluate on original images:
+
+```bash
+python test.py \
+--dataset_type original \
+--image_dir dataset/test/images \
+--mask_dir dataset/test/masks \
+--checkpoint checkpoints/best.pth
+```
+
+Evaluate on JPEG-compressed images:
+
+```bash
+python test.py \
+--dataset_type compressed \
+--image_dir dataset/test/images \
+--mask_dir dataset/test/masks \
+--checkpoint checkpoints/best.pth
 ```
 
 ---
@@ -90,7 +112,6 @@ During training:
 
 - Best model saved as: checkpoints/best.pth
 - Validation metrics shown after each epoch
-- Test evaluation runs automatically after training
 
 Metrics reported:
 
